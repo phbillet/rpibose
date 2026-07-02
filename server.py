@@ -53,7 +53,7 @@ def list_bluetooth_devices():
     try:
         scan_proc = subprocess.Popen(["bluetoothctl", "scan", "on"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
-            scan_proc.wait(timeout=4)
+            scan_proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             scan_proc.terminate()
             scan_proc.wait()
