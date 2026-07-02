@@ -29,12 +29,27 @@ sudo rfkill unblock bluetooth || true
 sudo usermod -aG bluetooth $USER
 sudo usermod -aG audio $USER
 
+# NEW: Allow user to shutdown/reboot the Pi without a password prompt
+echo "   -> Granting passwordless shutdown privileges..."
+echo "$USER ALL=(ALL) NOPASSWD: /sbin/poweroff, /sbin/shutdown, /sbin/reboot" | sudo tee /etc/sudoers.d/99-rpibose-shutdown > /dev/null
+sudo chmod 0440 /etc/sudoers.d/99-rpibose-shutdown
+
 # Force bluez-alsa to accept connections from the 'audio' group
-if [ -f /lib/systemd/system/bluez-alsa.service ]; then
-    echo "   -> Patching bluez-alsa.service permissions..."
-    # Ensure --group=audio is appended to the ExecStart execution line
-    if ! grep -q -- "--group=audio" /lib/systemd/system/bluez-alsa.service; then
-        sudo sed -i 's|ExecStart=/usr/bin/bluealsa|ExecStart=/usr/bin/bluealsa --group=audio|' /lib/systemd/system/bluez-alsa.service
+# if [ -f /lib/systemd/system/bluez-alsa.service ]; then
+#     echo "   -> Patching bluez-alsa.service permissions..."
+#     # Ensure --group=audio is appended to the ExecStart execution line
+#     if ! grep -q -- "--group=audio" /lib/systemd/system/bluez-alsa.service; then
+#         sudo sed -i 's|ExecStart=/usr/bin/bluealsa|ExecStart=/usr/bin/bluealsa --group=audio|' /lib/systemd/system/bluez-alsa.service
+#         sudo systemctl daemon-reload
+#     fi
+# fi
+
+# Patch bluealsa.service permissions dynamically using systemctl
+if systemctl list-unit-files | grep -q "bluealsa.service"; then
+    echo "   -> Patching bluealsa.service permissions..."
+    SERVICE_PATH=$(systemctl show -p FragmentPath bluealsa | cut -d= -f2)
+    if [ -f "$SERVICE_PATH" ] && ! grep -q -- "--group=audio" "$SERVICE_PATH"; then
+        sudo sed -i 's|ExecStart=/usr/bin/bluealsa|ExecStart=/usr/bin/bluealsa --group=audio|' "$SERVICE_PATH"
         sudo systemctl daemon-reload
     fi
 fi
