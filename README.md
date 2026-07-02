@@ -1,178 +1,92 @@
-# 📻 Radiolink: Bose SoundLink Wireless Remote Control
+# 📻 rpibose: Bose SoundLink Wireless Remote Control
 
-A lightweight, web-based remote control interface designed for Raspberry Pi to stream web radios directly to a **Bose SoundLink** (or any Bluetooth) speaker using `mpv` and Python. It supports multi-category station management (CRUD), volume control, mute/unmute toggling, dynamic Bluetooth device scanning, and live metadata sync (Title/Artist) over Bluetooth.
+`rpibose` is a lightweight, web-based remote control system designed for Raspberry Pi to stream web radios directly to a **Bose SoundLink** (or any Bluetooth) speaker. Driven by a fast Python web interface and a robust Bash audio engine powered by `mpv`, it supports multi-category station management (CRUD), volume control, mute/unmute toggling, dynamic Bluetooth device scanning, and live metadata synchronization (Title/Artist) over Bluetooth.
 
 ---
 
-## 📋 Prerequisites
+## 🚀 Quick Installation
 
-Before installing, ensure your Raspberry Pi is running a Linux distribution (such as Raspberry Pi OS) and has the following packages installed:
+Setting up `rpibose` on your Raspberry Pi is entirely automated. The installation script takes care of system dependencies, folder permissions, named communication pipes, and systemd background services.
+
+### One-Command Setup
+
+Open your terminal and run the following command:
 
 ```bash
-sudo apt update
-sudo apt install -y python3 mpv socat jq bluetooth bluez bluez-tools alsa-utils
+git clone https://github.com/phbillet/rpibose.git && cd rpibose && ./install.sh
 
 ```
 
 ---
 
-## 🗂️ Project Structure
+## 📂 Project Structure
 
-Create a dedicated directory for your project (e.g., `/home/pi/radiolink`) and place the files inside as follows:
+Once installed, your application layout inside the `~/rpibose` directory looks like this:
 
 ```text
-radiolink/
-├── server.py            # Python HTTP Web Server (Interface)
+rpibose/
+├── install.sh           # Automated one-click installer
+├── server.py            # Python HTTP Web Server (Web Interface)
 ├── radio_backend.sh     # Bash Audio & Control Engine
 ├── radios.csv           # Stations database (CSV format)
-└── bose.conf            # Cached Bluetooth configuration (Auto-generated)
+├── radio_pipe           # Named Pipe (FIFO) for inter-process communication
+└── bose.conf            # Cached Bluetooth config (Auto-generated)
 
 ```
 
-### 1. Database Setup (`radios.csv`)
-
-Initialize your station list by creating a `radios.csv` file with the following exact header:
-
-```csv
-name,url,category
-"FIP","https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance","France"
-"Radio Paradise","https://stream.radioparadise.com/aac-128","Eclectic"
-
-```
+> **Note on Data:** Your stations database file `radios.csv` uses a clean comma-separated structure with the required English header:
+> ```csv
+> name,url,category
+> "FIP","https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance","France"
+> 
+> ```
+> 
+> 
 
 ---
 
-## ⚙️ Installation & Automation Setup
+## 🎮 How to Use
 
-To make sure the web interface and the audio engine run seamlessly in the background and start automatically when the Raspberry Pi boots, we will configure them as **Systemd User Services**.
+1. Open any web browser on a device connected to the same local network as your Raspberry Pi.
+2. Navigate to your Raspberry Pi's IP address on port `8080` (e.g., `[http://192.168.1.50:8080](http://192.168.1.50:8080)`).
+3. **First-time configuration:**
+* Put your Bose SoundLink speaker into **pairing mode**.
+* Click on **🔍 Scan Nearby Devices** on the web page.
+* Select your speaker from the list. The system will automatically pair and trust the device.
 
-### Step 1: Make scripts executable
 
-```bash
-chmod +x /home/pi/radiolink/radio_backend.sh
+4. Click **🟢 POWER ON BOSE** to connect, then choose a station from your categorized tabs and enjoy!
 
-```
-
-### Step 2: Create the Web Server Service
-
-Create a systemd unit file for the web interface:
-
-```bash
-mkdir -p ~/.config/systemd/user/
-nano ~/.config/systemd/user/radionette-web.service
-
-```
-
-Paste the following configuration:
-
-```ini
-[Unit]
-Description=Radiolink Web Interface Server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/home/pi/radiolink
-ExecStart=/usr/bin/python3 /home/pi/radiolink/server.py
-Restart=always
-StandardOutput=append:/home/pi/radionette-web.log
-StandardError=append:/home/pi/radionette-web.log
-
-[Install]
-WantedBy=default.target
-
-```
-
-### Step 3: Create the Audio Engine Service
-
-Create a systemd unit file for the backend bash controller:
-
-```bash
-nano ~/.config/systemd/user/radionette-audio.service
-
-```
-
-Paste the following configuration:
-
-```ini
-[Unit]
-Description=Radiolink Audio Backend Controller
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/home/pi/radiolink
-ExecStart=/bin/bash /home/pi/radiolink/radio_backend.sh
-Restart=always
-
-[Install]
-WantedBy=default.target
-
-```
-
-### Step 4: Enable and Start Services
-
-Reload the systemd daemon configuration, enable the services for persistence on boot, and start them immediately:
-
-```bash
-# Reload systemd configuration
-systemctl --user daemon-reload
-
-# Enable services to auto-start on boot
-systemctl --user enable radionette-web.service
-systemctl --user enable radionette-audio.service
-
-# Start the services right now
-systemctl --user start radionette-web.service
-systemctl --user start radionette-audio.service
-
-```
-
-*(Optional)* To allow user services to run even when you are logged out of your SSH session, run:
-
-```bash
-sudo loginctl enable-linger $USER
-
-```
+You can add, edit, or delete web radios at any time directly through the **⚙️ Manage Radios** dashboard.
 
 ---
 
-## 🚀 How to Use
+## 🛠️ Management & Troubleshooting
 
-1. Open your favorite web browser from any device connected to the same local network.
-2. Navigate to your Raspberry Pi's IP address on port `8080` (e.g., `http://192.168.1.50:8080`).
-3. **First-time setup:** * If no speaker is configured, click on **🔍 Scan Nearby Devices**.
-* Turn your Bose SoundLink speaker on and set it to **pairing mode**.
-* Select your speaker from the scanned list. The system will automatically pair, trust, and save the speaker profile.
+Both the web server and the audio engine run continuously in the background as **Systemd User Services**, meaning they automatically restart on boot and run headlessly without needing an active SSH login.
 
+### Service Control
 
-4. Click **🟢 POWER ON BOSE** to establish the Bluetooth connection.
-5. Choose any station from your categorized tabs and enjoy the music! You can add, edit, or delete stations at any time using the **⚙️ Manage Radios** dashboard.
-
----
-
-## 🛠️ Troubleshooting & Logs
-
-If the web page fails to load or the sound drops out, you can inspect live runtime logs using the following commands:
-
-* **Check service status:**
 ```bash
+# Check if services are running properly
 systemctl --user status radionette-web.service
 systemctl --user status radionette-audio.service
 
-```
-
-
-* **View Web interface runtime errors:**
-```bash
-tail -n 50 ~/radionette-web.log
-
-```
-
-
-* **Restart services after a manual code update:**
-```bash
+# Restart the application after code adjustments
 systemctl --user restart radionette-web.service radionette-audio.service
+
+```
+
+### Inspecting Runtime Logs
+
+If you encounter streaming stability issues or web server crashes, check the dedicated log files located right inside your project directory:
+
+```bash
+# View recent audio engine logs (mpv / bluetooth)
+tail -n 50 ~/rpibose/radionette-audio.log
+
+# View recent web server logs (Python)
+tail -n 50 ~/rpibose/radionette-web.log
 
 ```
 
