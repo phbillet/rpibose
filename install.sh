@@ -5,7 +5,6 @@ set -e
 
 echo "📦 1. Installing system and audio dependencies..."
 sudo apt update
-# Notice the addition of bluez-alsa-utils for ALSA-pure Bluetooth audio bridges
 sudo apt install -y python3 mpv socat jq bluetooth bluez bluez-tools alsa-utils bluez-alsa-utils
 
 echo "📂 2. Setting up project directory and permissions..."
@@ -22,27 +21,16 @@ else
 fi
 
 echo "🛡️ 4. Configuring Bluetooth Audio & Security Groups..."
-# Unlock physical bluetooth interface
 sudo rfkill unblock bluetooth || true
 
-# Add current user to essential groups to permit hardware and audio socket manipulation
+# Add current user to essential groups
 sudo usermod -aG bluetooth $USER
 sudo usermod -aG audio $USER
 
-# NEW: Allow user to shutdown/reboot the Pi without a password prompt
+# Grant passwordless shutdown privileges
 echo "   -> Granting passwordless shutdown privileges..."
 echo "$USER ALL=(ALL) NOPASSWD: /sbin/poweroff, /sbin/shutdown, /sbin/reboot" | sudo tee /etc/sudoers.d/99-rpibose-shutdown > /dev/null
 sudo chmod 0440 /etc/sudoers.d/99-rpibose-shutdown
-
-# Patch bluealsa.service permissions dynamically using systemctl
-if systemctl list-unit-files | grep -q "bluealsa.service"; then
-    echo "   -> Patching bluealsa.service permissions..."
-    SERVICE_PATH=$(systemctl show -p FragmentPath bluealsa | cut -d= -f2)
-    if [ -f "$SERVICE_PATH" ] && ! grep -q -- "--group=audio" "$SERVICE_PATH"; then
-        sudo sed -i 's|ExecStart=/usr/bin/bluealsa|ExecStart=/usr/bin/bluealsa --group=audio|' "$SERVICE_PATH"
-        sudo systemctl daemon-reload
-    fi
-fi
 
 # Enable and start the low-level system services
 sudo systemctl enable --now bluetooth
@@ -94,15 +82,11 @@ systemctl --user enable radionette-web.service
 echo "🚀 7. Starting services right now..."
 systemctl --user restart radionette-audio.service radionette-web.service
 
-echo "👑 8. Enabling lingering (allows user services to run headlessly without SSH login)..."
+echo "👑 8. Enabling lingering..."
 sudo loginctl enable-linger $USER
 
 echo "--------------------------------------------------------"
 echo "🎉 INSTALLATION COMPLETE SUCCESSFUL!"
 echo "--------------------------------------------------------"
-echo "⚠️  IMPORTANT: Please run 'sudo reboot' to apply new security group permissions."
-echo "--------------------------------------------------------"
-echo "📻 Web Interface available at: http://$(hostname -I | awk '{print $1}'):8080"
-echo "📝 Audio logs: ~/rpibose/radionette-audio.log"
-echo "📝 Web logs:   ~/rpibose/radionette-web.log"
+echo "⚠️  IMPORTANT: Please run 'sudo reboot' to apply group permissions."
 echo "--------------------------------------------------------"
