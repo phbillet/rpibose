@@ -34,16 +34,6 @@ echo "   -> Granting passwordless shutdown privileges..."
 echo "$USER ALL=(ALL) NOPASSWD: /sbin/poweroff, /sbin/shutdown, /sbin/reboot" | sudo tee /etc/sudoers.d/99-rpibose-shutdown > /dev/null
 sudo chmod 0440 /etc/sudoers.d/99-rpibose-shutdown
 
-# Force bluez-alsa to accept connections from the 'audio' group
-# if [ -f /lib/systemd/system/bluez-alsa.service ]; then
-#     echo "   -> Patching bluez-alsa.service permissions..."
-#     # Ensure --group=audio is appended to the ExecStart execution line
-#     if ! grep -q -- "--group=audio" /lib/systemd/system/bluez-alsa.service; then
-#         sudo sed -i 's|ExecStart=/usr/bin/bluealsa|ExecStart=/usr/bin/bluealsa --group=audio|' /lib/systemd/system/bluez-alsa.service
-#         sudo systemctl daemon-reload
-#     fi
-# fi
-
 # Patch bluealsa.service permissions dynamically using systemctl
 if systemctl list-unit-files | grep -q "bluealsa.service"; then
     echo "   -> Patching bluealsa.service permissions..."
@@ -56,7 +46,7 @@ fi
 
 # Enable and start the low-level system services
 sudo systemctl enable --now bluetooth
-sudo systemctl enable --now bluez-alsa
+sudo systemctl enable --now bluealsa
 
 echo "⚙️ 5. Creating Systemd User Services..."
 USER_SYSTEMD_DIR="$HOME/.config/systemd/user"
